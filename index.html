@@ -1,0 +1,1140 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>轨道数据中心 · 太阳能板与散热板尺寸估算</title>
+<style>
+  :root{
+    --ink:#0f172a;
+    --ink-2:#334155;
+    --muted:#64748b;
+    --line:#e4e9f0;
+    --blue:#2563eb;
+    --cyan:#0ea5e9;
+    --orange:#f97316;
+    --card:rgba(255,255,255,.88);
+    --shadow:0 12px 32px -12px rgba(15,23,42,.35), 0 2px 8px -2px rgba(15,23,42,.12);
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{height:100%;margin:0}
+  body{
+    font-family:"Inter",-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+    background:#03060c;color:var(--ink);overflow:hidden;font-feature-settings:"tnum";
+  }
+  #scene{position:fixed;inset:0;display:block}
+  .vignette{position:fixed;inset:0;pointer-events:none;
+    background:radial-gradient(125% 95% at 50% 45%,rgba(3,6,12,0) 42%,rgba(3,6,12,.5) 100%)}
+
+  /* ---------- 顶部 ---------- */
+  .hud-top{position:fixed;left:26px;top:22px;display:flex;align-items:flex-start;gap:14px;pointer-events:none}
+  .brand{display:flex;gap:12px;align-items:flex-start}
+  .brand .mark{
+    width:30px;height:30px;border-radius:9px;margin-top:2px;flex:none;position:relative;
+    background:linear-gradient(145deg,#38bdf8,#2563eb 55%,#7c3aed);
+    box-shadow:0 0 0 1px rgba(255,255,255,.25), 0 8px 20px -6px rgba(56,189,248,.8);
+  }
+  .brand .mark::after{content:"";position:absolute;inset:9px;border-radius:3px;
+    background:#eaf4ff;box-shadow:0 0 10px 2px rgba(255,255,255,.6)}
+  .brand h1{font-size:16px;line-height:1.25;margin:0;color:#eef4ff;letter-spacing:.2px;font-weight:650}
+  .brand p{margin:5px 0 0;font-size:11.5px;color:#8ea3c0;letter-spacing:.3px}
+  .status{
+    display:inline-flex;align-items:center;gap:7px;padding:6px 11px;border-radius:999px;
+    font-size:11.5px;color:#cfe6ff;background:rgba(14,30,54,.62);
+    border:1px solid rgba(96,165,250,.32);backdrop-filter:blur(8px);white-space:nowrap;
+  }
+  .status i{width:6px;height:6px;border-radius:50%;background:#38bdf8;box-shadow:0 0 8px 1px #38bdf8;display:block}
+  .status.eclipse{color:#ffd9b0;border-color:rgba(249,115,22,.4);background:rgba(50,24,10,.6)}
+  .status.eclipse i{background:#f97316;box-shadow:0 0 8px 1px #f97316}
+
+  /* ---------- 镜头切换 ---------- */
+  .modes{
+    position:fixed;top:22px;left:50%;transform:translateX(-50%);z-index:5;
+    display:flex;gap:3px;padding:4px;border-radius:999px;
+    background:rgba(8,18,32,.6);border:1px solid rgba(120,170,230,.22);
+    backdrop-filter:blur(16px);box-shadow:0 10px 26px -12px rgba(0,0,0,.9);
+  }
+  .modes button{
+    font:inherit;font-size:11.5px;letter-spacing:.02em;padding:6px 15px;border-radius:999px;
+    border:0;background:transparent;color:#9eb6d2;cursor:pointer;transition:.18s;white-space:nowrap;
+  }
+  .modes button:hover{color:#dcebff;background:rgba(120,170,230,.12)}
+  .modes button.on{
+    background:linear-gradient(180deg,#3b82f6,#2563eb);color:#fff;
+    box-shadow:0 4px 14px -4px rgba(37,99,235,.9);
+  }
+
+  /* ---------- 右侧参数面板 ---------- */
+  .panel{
+    position:fixed;right:22px;top:72px;width:312px;max-height:calc(100vh - 94px);
+    overflow-y:auto;overscroll-behavior:contain;
+    background:var(--card);border:1px solid rgba(255,255,255,.75);border-radius:18px;
+    box-shadow:var(--shadow);backdrop-filter:blur(18px) saturate(1.2);padding:16px 16px 14px;
+  }
+  .panel::-webkit-scrollbar{width:8px}
+  .panel::-webkit-scrollbar-thumb{background:#cfd9e6;border-radius:8px;border:2px solid transparent;background-clip:content-box}
+  .panel-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+  .panel-head h2{font-size:12px;margin:0;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);font-weight:650}
+  .panel-head button{
+    font:inherit;font-size:11.5px;color:var(--ink-2);background:#f2f6fb;border:1px solid var(--line);
+    border-radius:8px;padding:4px 9px;cursor:pointer;transition:.18s;
+  }
+  .panel-head button:hover{background:#e9f0fa;color:var(--blue)}
+
+  .ctrl{margin-bottom:15px}
+  .ctrl .row{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:7px;gap:8px}
+  .ctrl label{font-size:12.5px;color:var(--ink-2);font-weight:520}
+  .ctrl .val{font-size:12.5px;font-weight:700;color:var(--ink);font-variant-numeric:tabular-nums}
+  .ctrl .val small{font-weight:500;color:var(--muted);font-size:11px;margin-left:1px}
+  input[type=range]{
+    -webkit-appearance:none;appearance:none;width:100%;height:5px;border-radius:99px;
+    background:linear-gradient(90deg,#dbe6f4,#eef3fa);outline:none;margin:0;cursor:pointer;
+  }
+  input[type=range]::-webkit-slider-thumb{
+    -webkit-appearance:none;width:16px;height:16px;border-radius:50%;background:#fff;
+    border:2.5px solid var(--blue);box-shadow:0 2px 6px rgba(37,99,235,.35);transition:.15s;
+  }
+  input[type=range]::-webkit-slider-thumb:hover{transform:scale(1.12)}
+  input[type=range].hot::-webkit-slider-thumb{border-color:var(--orange);box-shadow:0 2px 6px rgba(249,115,22,.35)}
+  .hint{font-size:10.5px;color:var(--muted);margin-top:6px;line-height:1.5}
+
+  .chips{display:flex;gap:6px;margin-top:8px}
+  .chip{
+    flex:1;font:inherit;font-size:10.5px;padding:6px 4px;border-radius:8px;cursor:pointer;
+    background:#f4f7fb;border:1px solid var(--line);color:var(--ink-2);transition:.16s;white-space:nowrap;
+  }
+  .chip:hover{background:#eaf1fb;border-color:#c7dbf7}
+  .chip.on{background:var(--blue);border-color:var(--blue);color:#fff;box-shadow:0 4px 10px -3px rgba(37,99,235,.5)}
+
+  .switch-row{display:flex;gap:8px;margin-top:2px}
+  .switch{
+    flex:1;display:flex;align-items:center;gap:7px;font-size:11px;color:var(--ink-2);cursor:pointer;
+    background:#f4f7fb;border:1px solid var(--line);border-radius:9px;padding:7px 9px;transition:.16s;
+    position:relative;
+  }
+  .switch:hover{background:#eaf1fb}
+  .switch input{position:absolute;opacity:0;pointer-events:none}
+  .switch i{
+    width:26px;height:15px;border-radius:99px;background:#cbd5e1;position:relative;flex:none;transition:.2s;
+  }
+  .switch i::after{
+    content:"";position:absolute;top:2px;left:2px;width:11px;height:11px;border-radius:50%;
+    background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.25);transition:.2s;
+  }
+  .switch input:checked + i{background:var(--blue)}
+  .switch input:checked + i::after{transform:translateX(11px)}
+
+  details{margin-top:6px;border-top:1px dashed var(--line);padding-top:10px}
+  summary{font-size:11.5px;color:var(--blue);cursor:pointer;font-weight:600;list-style:none;display:flex;align-items:center;gap:6px}
+  summary::-webkit-details-marker{display:none}
+  summary::before{content:"＋";font-size:11px;transition:.2s}
+  details[open] summary::before{content:"－"}
+  details p{margin:9px 0 0;font-size:10.8px;line-height:1.7;color:var(--muted)}
+  details code{background:#eef3fa;border-radius:4px;padding:1px 4px;font-size:10px;color:#1d4ed8;
+    font-family:ui-monospace,"SF Mono",Consolas,monospace}
+
+  /* ---------- 左下指标 ---------- */
+  .metrics{
+    position:fixed;left:24px;bottom:24px;display:flex;gap:10px;flex-wrap:wrap;max-width:min(620px,calc(100vw - 380px));
+  }
+  .m{
+    background:var(--card);border:1px solid rgba(255,255,255,.7);border-radius:14px;
+    padding:10px 14px 9px;backdrop-filter:blur(16px);box-shadow:var(--shadow);min-width:104px;
+  }
+  .m span{display:block;font-size:10.5px;color:var(--muted);letter-spacing:.04em;margin-bottom:3px}
+  .m .num{font-size:21px;font-weight:700;letter-spacing:-.02em;line-height:1.1;color:var(--ink);font-variant-numeric:tabular-nums}
+  .m .num em{font-size:11px;font-weight:600;font-style:normal;color:var(--muted);margin-left:2px}
+  .m.solar .num{color:#1d4ed8}
+  .m.rad .num{color:#ea580c}
+
+  .dims{
+    position:fixed;left:24px;bottom:96px;font-size:11px;color:#9db3cf;
+    letter-spacing:.02em;line-height:1.7;text-shadow:0 1px 8px rgba(0,0,0,.8);
+  }
+  .dims b{color:#dbeaff;font-weight:600}
+  .dims .sep{color:#3c5573;margin:0 7px}
+  .dims .note{color:#7f96b3;font-size:10.5px}
+
+  /* ---------- 3D 标注 ---------- */
+  #labels{position:fixed;inset:0;pointer-events:none;overflow:hidden}
+  .lbl{
+    position:absolute;left:0;top:0;white-space:nowrap;font-size:10.5px;font-weight:600;
+    color:#0f172a;background:rgba(255,255,255,.92);border:1px solid rgba(15,23,42,.12);
+    padding:3px 8px;border-radius:7px;box-shadow:0 4px 14px -4px rgba(0,0,0,.6);
+    transform:translate(-50%,-50%);opacity:0;transition:opacity .25s;letter-spacing:.01em;
+  }
+  .lbl.show{opacity:1}
+  .lbl.solar{border-color:rgba(37,99,235,.35);color:#1d4ed8;background:rgba(239,246,255,.94)}
+  .lbl.rad{border-color:rgba(249,115,22,.35);color:#c2410c;background:rgba(255,247,237,.94)}
+  .lbl.core{border-color:rgba(15,23,42,.18);color:#0f172a;background:rgba(241,245,249,.94)}
+  .lbl.planet{
+    font-size:10px;font-weight:500;color:#cfe0f5;background:rgba(10,22,38,.5);
+    border-color:rgba(140,185,235,.28);box-shadow:none;padding:2px 7px;
+  }
+  .lbl.sun{font-size:10.5px;color:#ffe6a8;background:rgba(70,40,8,.45);border-color:rgba(255,200,90,.4)}
+
+  @media (max-width:900px){
+    .panel{right:12px;left:12px;top:auto;bottom:12px;width:auto;max-height:54vh;border-radius:16px}
+    .hud-top{left:14px;top:12px}
+    .brand h1{font-size:13.5px}
+    .brand p{display:none}
+    .status{display:none}
+    .modes{top:auto;bottom:calc(54vh + 96px);left:50%;padding:3px}
+    .modes button{font-size:10.5px;padding:5px 10px}
+    .metrics{left:14px;bottom:calc(54vh + 22px);gap:7px}
+    .m{padding:8px 11px;min-width:82px;border-radius:11px}
+    .m .num{font-size:17px}
+    .dims{left:14px;bottom:calc(54vh + 92px);font-size:9.5px}
+  }
+</style>
+</head>
+<body>
+<canvas id="scene"></canvas>
+<div class="vignette"></div>
+<div id="labels"></div>
+
+<header class="hud-top">
+  <div class="brand">
+    <div class="mark"></div>
+    <div>
+      <h1>轨道数据中心 · Orbital Data Center</h1>
+      <p>太阳能供电 × 辐射散热 — 板面尺寸实时估算</p>
+    </div>
+  </div>
+  <div class="status" id="status"><i></i><span>日照中</span></div>
+</header>
+
+<div class="modes">
+  <button data-mode="free" class="on">自由视角</button>
+  <button data-mode="sat">卫星机位</button>
+  <button data-mode="solar">太阳系</button>
+</div>
+
+<aside class="panel">
+  <div class="panel-head">
+    <h2>设计参数</h2>
+    <button id="reset">重置</button>
+  </div>
+
+  <div class="ctrl">
+    <div class="row"><label for="it">IT 负载（算力功耗）</label><span class="val" id="v_it">50<small>kW</small></span></div>
+    <input type="range" id="it" min="5" max="500" step="5" value="50">
+  </div>
+
+  <div class="ctrl">
+    <div class="row"><label for="pue">PUE（含供配电与泵耗）</label><span class="val" id="v_pue">1.15</span></div>
+    <input type="range" id="pue" min="1.05" max="1.8" step="0.01" value="1.15">
+    <div class="hint">太空靠辐射散热，无风扇无水耗，但循环泵与配电仍有损耗。</div>
+  </div>
+
+  <div class="ctrl">
+    <div class="row"><label for="sun">日照时间占比</label><span class="val" id="v_sun">62<small>%</small></span></div>
+    <input type="range" id="sun" min="40" max="100" step="0.5" value="62">
+    <div class="chips">
+      <button class="chip on" data-sun="62">低轨 LEO</button>
+      <button class="chip" data-sun="99.5">晨昏轨道</button>
+      <button class="chip" data-sun="72">极地轨道</button>
+    </div>
+    <div class="hint">晨昏太阳同步轨道几乎全年不落日，能省掉整组储能电池。</div>
+  </div>
+
+  <div class="ctrl">
+    <div class="row"><label for="cell">电池片功率密度</label><span class="val" id="v_cell">350<small>W/m²</small></span></div>
+    <input type="range" id="cell" min="200" max="430" step="5" value="350">
+    <div class="hint">三结砷化镓 BOL 约 300–380 W/m²（含布片系数与衰减）。</div>
+  </div>
+
+  <div class="ctrl">
+    <div class="row"><label for="temp">散热板工作温度</label><span class="val" id="v_temp">40<small>°C</small></span></div>
+    <input type="range" id="temp" class="hot" min="5" max="70" step="1" value="40">
+    <div class="hint">温度每升 10 °C，辐射能力约增 15%，板面可显著缩小。</div>
+  </div>
+
+  <div class="ctrl">
+    <div class="row"><label for="emis">散热板发射率 ε</label><span class="val" id="v_emis">0.92</span></div>
+    <input type="range" id="emis" class="hot" min="0.70" max="0.98" step="0.01" value="0.92">
+  </div>
+
+  <div class="ctrl" style="margin-bottom:10px">
+    <div class="switch-row">
+      <label class="switch"><input type="checkbox" id="swSpin" checked><i></i>地球自转</label>
+      <label class="switch"><input type="checkbox" id="swOrbit" checked><i></i>卫星绕行</label>
+    </div>
+  </div>
+
+  <details>
+    <summary>计算依据与假设</summary>
+    <p>
+      ① <b>总功率</b>：<code>P = IT × PUE</code><br>
+      ② <b>太阳能板</b>：<code>A = P ÷ 日照占比 ÷ 电池片功率密度</code>，地影期靠电池续命，日照期必须多发的部分。<br>
+      ③ <b>散热板</b>：太空只能辐射散热，<code>Q = P</code>（电能最终全部转成热），
+      <code>A = Q ÷ [εσ(T⁴ − T_env⁴) − α·G]</code>，σ=5.67e-8，环境温度按 250 K（地球红外+反照）估算，α 取 0.18 计入太阳直射吸收。<br>
+      ④ <b>储能</b>：90 分钟轨道、地影期放电、锂电池 150 Wh/kg。<br>
+      ⑤ 质量：太阳能板 4 kg/m²、散热板 6 kg/m²、电子设备 22 kg/kW。<br>
+      ⑥ <b>比例</b>：卫星与地球真实比例约 1:300000，真实比例下不足 1 像素，模型已放大以便观察；<br>
+      ⑦ 太阳系距离与天体半径同样大幅压缩，仅示意空间关系。
+    </p>
+  </details>
+</aside>
+
+<div class="dims" id="dims"></div>
+
+<div class="metrics">
+  <div class="m solar"><span>太阳能板面积</span><div class="num"><span id="m_arr">265</span><em>m²</em></div></div>
+  <div class="m rad"><span>散热板面积</span><div class="num"><span id="m_rad">227</span><em>m²</em></div></div>
+  <div class="m"><span>系统总功率</span><div class="num"><span id="m_pow">57.5</span><em>kW</em></div></div>
+  <div class="m"><span>发射质量</span><div class="num"><span id="m_mass">3.2</span><em>t</em></div></div>
+</div>
+
+<script src="vendor/three.min.js"></script>
+<script src="vendor/OrbitControls.js"></script>
+<script>
+(function(){
+  "use strict";
+
+  /* ================= 常量 ================= */
+  var SIGMA = 5.670374419e-8;
+  var SOLAR = 1361;
+  var EARTH_R = 60;          // 场景单位（1 单位 ≈ 106 km）
+  var ORBIT_R = 90;          // 近地轨道（视觉略抬升，避免贴脸）
+  var T_SINK = 250;
+  var SUN_DIST = 1500;       // 压缩后的日地距离
+  var KM_PER_UNIT = 12742 / (EARTH_R * 2);
+
+  /* ================= 状态 ================= */
+  var S = { it:50, pue:1.15, sun:62, cell:350, temp:40, emis:0.92 };
+  var DEFAULT = { it:50, pue:1.15, sun:62, cell:350, temp:40, emis:0.92 };
+  var spinEarth = true, orbitSat = true;
+
+  /* ================= 计算 ================= */
+  var REF_SPAN = null;
+  function calc(){
+    var Pit = S.it * 1000;
+    var Ptot = Pit * S.pue;
+    var sunFrac = S.sun / 100;
+    var Parr = Ptot / sunFrac;
+    var Aarr = Parr / S.cell;
+
+    var Q = Ptot;
+    var T = S.temp + 273.15;
+    var base = S.emis * SIGMA * (Math.pow(T,4) - Math.pow(T_SINK,4));
+    var sunLoad = 0.18 * SOLAR * 0.18;
+    var flux = Math.max(base - sunLoad, base * 0.35);
+    var Arad = Q / flux;
+
+    var eclH = (1 - sunFrac) * 1.5;
+    var battKWh = Ptot * eclH / 1000;
+
+    var wingA = Aarr / 2;
+    var arrD = Math.sqrt(wingA / 3.2);
+    var arrL = 3.2 * arrD;
+    var radA = Arad / 2;
+    var radW = Math.sqrt(radA / 1.55);
+    var radH = 1.55 * radW;
+
+    var mass = Aarr*4 + Arad*6 + (Ptot/1000)*22 + battKWh/0.15;
+
+    return {
+      Ptot:Ptot, Aarr:Aarr, Arad:Arad, Q:Q, flux:flux,
+      battKWh:battKWh, mass:mass, arrL:arrL, arrD:arrD,
+      radW:radW, radH:radH, span: arrL*2 + 2.4
+    };
+  }
+
+  /* ================= 渲染器 ================= */
+  var canvas = document.getElementById('scene');
+  var renderer = new THREE.WebGLRenderer({canvas:canvas, antialias:true});
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  if(THREE.sRGBEncoding) renderer.outputEncoding = THREE.sRGBEncoding;
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 1.05;
+
+  var scene = new THREE.Scene();
+  var camera = new THREE.PerspectiveCamera(45, window.innerWidth/window.innerHeight, 0.35, 30000);
+  camera.position.set(150, 100, 250);
+
+  var controls = new THREE.OrbitControls(camera, canvas);
+  controls.enableDamping = true;
+  controls.dampingFactor = 0.06;
+  controls.rotateSpeed = 0.55;
+  controls.zoomSpeed = 0.75;
+  controls.minDistance = 78;
+  controls.maxDistance = 620;
+  controls.enablePan = false;
+
+  /* ================= 太阳系骨架 =================
+     地球固定在场景原点，太阳位于 SUN_LOCAL，其余行星绕太阳排布 */
+  var system = new THREE.Group();
+  system.rotation.x = -0.36;
+  system.rotation.z = 0.16;
+  scene.add(system);
+  system.updateMatrixWorld(true);
+
+  var SUN_LOCAL = new THREE.Vector3(SUN_DIST, 0, 0);
+  var SUN_WORLD = SUN_LOCAL.clone().applyQuaternion(system.quaternion);
+  var SUN = SUN_WORLD.clone().normalize();   // 地球 → 太阳 的世界方向
+
+  /* ---------- 光照 ---------- */
+  var sunLight = new THREE.DirectionalLight(0xfff3df, 2.6);
+  sunLight.position.copy(SUN).multiplyScalar(900);
+  scene.add(sunLight);
+  scene.add(new THREE.AmbientLight(0x35507a, 0.55));
+  var rim = new THREE.DirectionalLight(0x2f5fa8, 0.45);
+  rim.position.set(-1,-0.4,-0.7).multiplyScalar(400);
+  scene.add(rim);
+
+  /* ---------- 纹理工厂 ---------- */
+  function cv(w,h){ var c=document.createElement('canvas'); c.width=w; c.height=h; return c; }
+
+  function earthTexture(){
+    var W=2048, H=1024, c=cv(W,H), x=c.getContext('2d');
+    var g=x.createLinearGradient(0,0,0,H);
+    g.addColorStop(0,'#0a2240'); g.addColorStop(.18,'#0b3a63');
+    g.addColorStop(.5,'#11587f'); g.addColorStop(.82,'#0b3a63'); g.addColorStop(1,'#0a2240');
+    x.fillStyle=g; x.fillRect(0,0,W,H);
+
+    function px(lon,lat){ return [ (lon+180)/360*W, (90-lat)/180*H ]; }
+
+    var LANDS = [
+      [[-168,65],[-140,70],[-100,72],[-80,70],[-60,58],[-55,48],[-70,42],[-80,26],[-97,26],[-105,20],[-115,30],[-125,40],[-130,55],[-150,60]],
+      [[-80,10],[-60,10],[-50,0],[-35,-6],[-38,-22],[-55,-35],[-70,-52],[-75,-45],[-72,-20],[-80,-5]],
+      [[-17,15],[-16,28],[10,37],[32,31],[43,12],[51,12],[40,-5],[40,-25],[25,-34],[15,-28],[9,-1],[-10,5]],
+      [[-10,36],[0,44],[3,52],[10,58],[30,70],[60,70],[60,50],[40,45],[28,41],[20,39],[10,43],[0,40]],
+      [[30,70],[60,72],[100,76],[140,72],[160,68],[160,55],[140,45],[130,35],[122,30],[120,22],[107,10],[103,1],[98,8],[90,22],[80,8],[72,20],[60,25],[48,30],[40,40],[45,50],[30,70]],
+      [[114,-22],[122,-18],[132,-12],[142,-11],[146,-19],[153,-28],[150,-38],[140,-38],[129,-32],[115,-34]],
+      [[-45,60],[-20,70],[-18,80],[-45,83],[-58,78],[-55,66]]
+    ];
+
+    function drawLand(fill, blur, dx, dy, jit){
+      x.save();
+      x.fillStyle=fill; x.shadowColor=fill; x.shadowBlur=blur;
+      for(var i=0;i<LANDS.length;i++){
+        var p=LANDS[i], s=px(p[0][0],p[0][1]);
+        x.beginPath(); x.moveTo(s[0]+dx, s[1]+dy);
+        for(var j=1;j<p.length;j++){
+          var q=px(p[j][0],p[j][1]);
+          x.lineTo(q[0]+dx+(Math.random()-0.5)*jit, q[1]+dy+(Math.random()-0.5)*jit);
+        }
+        x.closePath(); x.fill();
+      }
+      x.restore();
+    }
+    drawLand('#255538', 20, 4, 3, 14);
+    drawLand('#2a6244', 8, 0, 0, 7);
+
+    x.save();
+    for(var k=0;k<2600;k++){
+      var lx=Math.random()*W, ly=H*0.12+Math.random()*H*0.76;
+      var r=6+Math.random()*46;
+      x.globalAlpha=0.035+Math.random()*0.07;
+      x.fillStyle = Math.random()<0.42 ? '#7d7346' : (Math.random()<0.5 ? '#3f8455' : '#1f5738');
+      x.beginPath(); x.arc(lx,ly,r,0,6.2832); x.fill();
+    }
+    x.restore();
+
+    var ng=x.createLinearGradient(0,0,0,H*0.14);
+    ng.addColorStop(0,'rgba(238,247,255,.98)'); ng.addColorStop(1,'rgba(238,247,255,0)');
+    x.fillStyle=ng; x.fillRect(0,0,W,H*0.14);
+    var sg=x.createLinearGradient(0,H,0,H*0.84);
+    sg.addColorStop(0,'rgba(240,248,255,1)'); sg.addColorStop(1,'rgba(240,248,255,0)');
+    x.fillStyle=sg; x.fillRect(0,H*0.84,W,H*0.16);
+
+    x.save(); x.strokeStyle='rgba(190,225,255,.30)'; x.lineWidth=2.2;
+    for(var i2=0;i2<LANDS.length;i2++){
+      var pp=LANDS[i2], st=px(pp[0][0],pp[0][1]);
+      x.beginPath(); x.moveTo(st[0],st[1]);
+      for(var j2=1;j2<pp.length;j2++){ var q2=px(pp[j2][0],pp[j2][1]); x.lineTo(q2[0],q2[1]); }
+      x.closePath(); x.stroke();
+    }
+    x.restore();
+
+    var tex=new THREE.CanvasTexture(c);
+    if(THREE.sRGBEncoding) tex.encoding = THREE.sRGBEncoding;
+    tex.anisotropy = 4;
+    return tex;
+  }
+
+  function cloudTexture(){
+    var W=1024, H=512, c=cv(W,H), x=c.getContext('2d');
+    var img=x.createImageData(W,H), d=img.data;
+    function hash(i,j,k){
+      var n = (i*73856093) ^ (j*19349663) ^ (k*83492791);
+      n = (n ^ (n >> 13)) * 1274126177;
+      n = n ^ (n >> 16);
+      return (n >>> 0) / 4294967295;
+    }
+    function noise3(a,b,cc){
+      var i=Math.floor(a), j=Math.floor(b), k=Math.floor(cc);
+      var fx=a-i, fy=b-j, fz=cc-k;
+      fx=fx*fx*(3-2*fx); fy=fy*fy*(3-2*fy); fz=fz*fz*(3-2*fz);
+      function L(t,u,v,w){ return hash(i+t, j+u, k+v)*(1-w) + hash(i+t, j+u, k+v+1)*w; }
+      function M(t,u){ return L(t,u,0,fz)*(1-fy) + L(t,u,1,fz)*fy; }
+      return (M(0,0)*(1-fx) + M(1,0)*fx)*(1-fz) + (M(0,1)*(1-fx) + M(1,1)*fx)*fz;
+    }
+    for(var y=0;y<H;y++){
+      var lat=(0.5-y/H)*Math.PI, cy=Math.cos(lat), sy=Math.sin(lat);
+      for(var xx=0;xx<W;xx++){
+        var lon=xx/W*Math.PI*2;
+        var px3=cy*Math.cos(lon), py3=sy, pz3=cy*Math.sin(lon);
+        var v=0, amp=0.5, f=3.4;
+        for(var o=0;o<5;o++){
+          v += amp*noise3(px3*f+11, py3*f*1.7+3, pz3*f+7);
+          f*=2.05; amp*=0.5;
+        }
+        var a=Math.max(0,(v-0.53))*3.0;
+        a=Math.min(1,a);
+        var idx=(y*W+xx)*4;
+        d[idx]=255; d[idx+1]=255; d[idx+2]=255; d[idx+3]=Math.round(a*195);
+      }
+    }
+    x.putImageData(img,0,0);
+    var tex=new THREE.CanvasTexture(c);
+    if(THREE.sRGBEncoding) tex.encoding = THREE.sRGBEncoding;
+    return tex;
+  }
+
+  function panelTexture(){
+    var S0=512, c=cv(S0,S0), x=c.getContext('2d');
+    x.fillStyle='#0a1a2e'; x.fillRect(0,0,S0,S0);
+    var cols=10, rows=14, pad=3;
+    var cw=(S0-pad*(cols+1))/cols, ch=(S0-pad*(rows+1))/rows;
+    for(var i=0;i<cols;i++){
+      for(var j=0;j<rows;j++){
+        var g=x.createLinearGradient(0,j*ch,0,(j+1)*ch);
+        g.addColorStop(0,'#3a74b8'); g.addColorStop(.45,'#2c5c9c'); g.addColorStop(1,'#1f4478');
+        x.fillStyle=g;
+        x.fillRect(pad+i*(cw+pad), pad+j*(ch+pad), cw, ch);
+        x.strokeStyle='rgba(150,190,235,.18)'; x.lineWidth=1;
+        x.beginPath();
+        for(var b=1;b<4;b++){
+          var yy=pad+j*(ch+pad)+ch*b/4;
+          x.moveTo(pad+i*(cw+pad)+2, yy); x.lineTo(pad+i*(cw+pad)+cw-2, yy);
+        }
+        x.stroke();
+      }
+    }
+    x.strokeStyle='rgba(200,222,250,.30)'; x.lineWidth=2;
+    for(var i2=0;i2<=cols;i2++){
+      var xx=pad+i2*(cw+pad)-pad*0.5;
+      x.beginPath(); x.moveTo(xx,0); x.lineTo(xx,S0); x.stroke();
+    }
+    var tex=new THREE.CanvasTexture(c);
+    if(THREE.sRGBEncoding) tex.encoding = THREE.sRGBEncoding;
+    tex.anisotropy=8;
+    return tex;
+  }
+
+  function radiatorTexture(){
+    var S0=512, c=cv(S0,S0), x=c.getContext('2d');
+    var g=x.createLinearGradient(0,0,S0,S0);
+    g.addColorStop(0,'#fbfdff'); g.addColorStop(.5,'#eef3f9'); g.addColorStop(1,'#e2eaf4');
+    x.fillStyle=g; x.fillRect(0,0,S0,S0);
+    x.strokeStyle='rgba(150,175,205,.35)'; x.lineWidth=1.6;
+    for(var i=0;i<=8;i++){
+      var y=i*S0/8;
+      x.beginPath(); x.moveTo(0,y); x.lineTo(S0,y); x.stroke();
+    }
+    x.strokeStyle='rgba(150,175,205,.20)'; x.lineWidth=1;
+    for(var j=0;j<=5;j++){
+      var xx=j*S0/5;
+      x.beginPath(); x.moveTo(xx,0); x.lineTo(xx,S0); x.stroke();
+    }
+    var tex=new THREE.CanvasTexture(c);
+    if(THREE.sRGBEncoding) tex.encoding = THREE.sRGBEncoding;
+    tex.anisotropy=8;
+    return tex;
+  }
+
+  /* ---------- 地球 ---------- */
+  var earthGroup = new THREE.Group();
+  system.add(earthGroup);
+
+  var earthMat = new THREE.MeshStandardMaterial({
+    map: earthTexture(), roughness:0.84, metalness:0.02, color:0xffffff
+  });
+  var earth = new THREE.Mesh(new THREE.SphereGeometry(EARTH_R, 96, 64), earthMat);
+  earthGroup.add(earth);
+
+  var clouds = new THREE.Mesh(
+    new THREE.SphereGeometry(EARTH_R*1.006, 72, 48),
+    new THREE.MeshStandardMaterial({
+      map: cloudTexture(), transparent:true, opacity:0.6,
+      depthWrite:false, roughness:1, metalness:0
+    })
+  );
+  earthGroup.add(clouds);
+
+  var atmo = new THREE.Mesh(
+    new THREE.SphereGeometry(EARTH_R*1.04, 64, 48),
+    new THREE.ShaderMaterial({
+      uniforms:{ uColor:{ value:new THREE.Color(0x5aa8ff) } },
+      vertexShader:[
+        'varying vec3 vN;',
+        'void main(){',
+        '  vN = normalize(normalMatrix * normal);',
+        '  gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0);',
+        '}'
+      ].join('\n'),
+      fragmentShader:[
+        'uniform vec3 uColor;',
+        'varying vec3 vN;',
+        'void main(){',
+        '  float f = pow(clamp(1.0 - abs(vN.z), 0.0, 1.0), 3.0);',
+        '  gl_FragColor = vec4(uColor, f * 0.72);',
+        '}'
+      ].join('\n'),
+      side: THREE.BackSide, transparent:true, blending:THREE.AdditiveBlending, depthWrite:false
+    })
+  );
+  earthGroup.add(atmo);
+
+  /* ---------- 太阳 ---------- */
+  var sunMesh = new THREE.Mesh(
+    new THREE.SphereGeometry(64, 48, 32),
+    new THREE.MeshBasicMaterial({ color:0xfff6d2 })
+  );
+  sunMesh.position.copy(SUN_LOCAL);
+  system.add(sunMesh);
+
+  (function sunGlow(){
+    function sprite(colorStops, scale, opacity){
+      var S0=256, c=cv(S0,S0), x=c.getContext('2d');
+      var g=x.createRadialGradient(S0/2,S0/2,0,S0/2,S0/2,S0/2);
+      colorStops.forEach(function(st){ g.addColorStop(st[0], st[1]); });
+      x.fillStyle=g; x.fillRect(0,0,S0,S0);
+      var tex=new THREE.CanvasTexture(c);
+      var sp=new THREE.Sprite(new THREE.SpriteMaterial({
+        map:tex, blending:THREE.AdditiveBlending, depthWrite:false,
+        transparent:true, opacity:opacity
+      }));
+      sp.scale.setScalar(scale);
+      sp.position.copy(SUN_LOCAL);
+      system.add(sp);
+      return sp;
+    }
+    sprite([[0,'rgba(255,255,246,1)'],[.10,'rgba(255,247,214,.95)'],[.28,'rgba(255,220,150,.42)'],[.6,'rgba(255,190,110,.10)'],[1,'rgba(255,180,90,0)']], 330, 1);
+    sprite([[0,'rgba(255,236,190,.5)'],[.35,'rgba(255,200,120,.14)'],[1,'rgba(255,170,80,0)']], 950, 0.85);
+  })();
+
+  /* ---------- 行星 ---------- */
+  var PLANETS = [
+    { name:'水星', r:520,  size:7,   color:0xb9a89a, ang:0.85 },
+    { name:'金星', r:960,  size:11,  color:0xd8c299, ang:2.35 },
+    { name:'火星', r:1960, size:8,   color:0xc1613d, ang:-0.78 },
+    { name:'木星', r:2680, size:24,  color:0xd9b78f, ang:3.55 },
+    { name:'土星', r:3380, size:20,  color:0xd9cba6, ang:-2.30, ring:true }
+  ];
+
+  function orbitRing(radius, opacity, skipEarthGap){
+    var pts=[], N=200;
+    for(var i=0;i<=N;i++){
+      var a=i/N*Math.PI*2;
+      if(skipEarthGap){
+        // 地球方向：local +X 指向地球（地球在原点，太阳在 -X）
+        var dx = Math.cos(a), dz = Math.sin(a);
+        var toEarth = Math.abs(Math.atan2(dz, dx) - 0);
+        if(Math.abs(Math.atan2(dz,dx)) < 0.06) continue;
+      }
+      pts.push(new THREE.Vector3(
+        SUN_LOCAL.x + Math.cos(a)*radius, 0, SUN_LOCAL.z + Math.sin(a)*radius
+      ));
+    }
+    var g=new THREE.BufferGeometry().setFromPoints(pts);
+    var line=new THREE.Line(g, new THREE.LineBasicMaterial({
+      color:0x5b8fd0, transparent:true, opacity:opacity, depthWrite:false
+    }));
+    system.add(line);
+  }
+  orbitRing(SUN_DIST, 0.16, true);   // 地球轨道（在地球处断开）
+
+  var planetObjs = [];
+  PLANETS.forEach(function(p){
+    orbitRing(p.r, 0.10, false);
+    var mesh = new THREE.Mesh(
+      new THREE.SphereGeometry(p.size, 24, 18),
+      new THREE.MeshStandardMaterial({
+        color:p.color, roughness:0.9, metalness:0.02,
+        emissive:new THREE.Color(p.color).multiplyScalar(0.18)
+      })
+    );
+    mesh.position.set(
+      SUN_LOCAL.x + Math.cos(p.ang)*p.r, 0, SUN_LOCAL.z + Math.sin(p.ang)*p.r
+    );
+    system.add(mesh);
+
+    if(p.ring){
+      var ring = new THREE.Mesh(
+        new THREE.RingGeometry(p.size*1.5, p.size*2.4, 48),
+        new THREE.MeshBasicMaterial({ color:0xd9cba6, transparent:true, opacity:0.4, side:THREE.DoubleSide })
+      );
+      ring.rotation.x = -Math.PI/2 + 0.24;
+      mesh.add(ring);
+    }
+    planetObjs.push({ name:p.name, obj:mesh });
+  });
+
+  /* ---------- 星空 ---------- */
+  (function stars(){
+    var N=2600, pos=new Float32Array(N*3), col=new Float32Array(N*3);
+    for(var i=0;i<N;i++){
+      var v=new THREE.Vector3(Math.random()*2-1, Math.random()*2-1, Math.random()*2-1);
+      if(v.length()<0.001) v.set(0,1,0);
+      v.normalize().multiplyScalar(6000 + Math.random()*8000);
+      pos[i*3]=v.x; pos[i*3+1]=v.y; pos[i*3+2]=v.z;
+      var t=0.55+Math.random()*0.45;
+      col[i*3]=t; col[i*3+1]=t*(0.96+Math.random()*0.06); col[i*3+2]=1;
+    }
+    var g=new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.BufferAttribute(pos,3));
+    g.setAttribute('color', new THREE.BufferAttribute(col,3));
+    scene.add(new THREE.Points(g, new THREE.PointsMaterial({
+      size:1.9, vertexColors:true, transparent:true, opacity:0.85,
+      sizeAttenuation:false, depthWrite:false
+    })));
+  })();
+
+  /* ---------- 卫星轨道 ---------- */
+  var orbitPivot = new THREE.Group();
+  orbitPivot.rotation.z = 0.12;
+  orbitPivot.rotation.x = -0.03;
+  orbitPivot.rotation.y = -1.05;
+  system.add(orbitPivot);
+
+  var orbitLineMesh = (function(){
+    var pts=[];
+    for(var i=0;i<=180;i++){
+      var a=i/180*Math.PI*2;
+      pts.push(new THREE.Vector3(Math.cos(a)*ORBIT_R, 0, Math.sin(a)*ORBIT_R));
+    }
+    var g=new THREE.BufferGeometry().setFromPoints(pts);
+    var line=new THREE.LineLoop(g, new THREE.LineBasicMaterial({
+      color:0x4b8fd6, transparent:true, opacity:0.20
+    }));
+    orbitPivot.add(line);
+    return line;
+  })();
+
+  /* ================= 卫星 ================= */
+  var MAT = {
+    bus: new THREE.MeshStandardMaterial({ color:0x9aa8bb, metalness:0.72, roughness:0.4 }),
+    busDark: new THREE.MeshStandardMaterial({ color:0x2b3648, metalness:0.55, roughness:0.5 }),
+    gold: new THREE.MeshStandardMaterial({ color:0xc9a227, metalness:0.8, roughness:0.35 }),
+    panel: new THREE.MeshStandardMaterial({
+      map:panelTexture(), metalness:0.2, roughness:0.45, color:0xffffff,
+      emissive:new THREE.Color(0x1a3a66), emissiveIntensity:0.35
+    }),
+    rad: new THREE.MeshStandardMaterial({
+      map:radiatorTexture(), metalness:0.1, roughness:0.55, color:0xffffff,
+      emissive:new THREE.Color(0xff7a2f), emissiveIntensity:0.0
+    }),
+    glow: new THREE.MeshStandardMaterial({
+      color:0xffb066, emissive:new THREE.Color(0xff8a3d), emissiveIntensity:2.2, roughness:0.4
+    })
+  };
+  MAT.panel.emissiveMap = MAT.panel.map;
+  MAT.rad.emissiveMap = MAT.rad.map;
+
+  var satRoot = new THREE.Group();
+  satRoot.position.set(ORBIT_R, 0, 0);
+  orbitPivot.add(satRoot);
+
+  var camMount = new THREE.Object3D();
+
+  var labelLayer = document.getElementById('labels');
+  var labelStore = [];
+
+  function clearLabels(){
+    labelStore = labelStore.filter(function(L){
+      if(L.sat){
+        if(L.el.parentNode) L.el.parentNode.removeChild(L.el);
+        return false;
+      }
+      return true;
+    });
+  }
+  function addLabel(text, cls, obj, dy){
+    var el = document.createElement('div');
+    el.className = 'lbl ' + cls;
+    el.textContent = text;
+    labelLayer.appendChild(el);
+    labelStore.push({ el:el, obj:obj, dy:dy || 0, sat:true });
+    return el;
+  }
+  function addStaticLabel(text, cls, obj, dy){
+    var el = document.createElement('div');
+    el.className = 'lbl ' + cls;
+    el.textContent = text;
+    labelLayer.appendChild(el);
+    labelStore.push({ el:el, obj:obj, dy:dy || 0, sat:false });
+    return el;
+  }
+
+  function disposeTree(root){
+    root.traverse(function(o){ if(o.geometry) o.geometry.dispose(); });
+  }
+
+  var satInner = null;
+  var dimsObj = { panel:null, rad:null, bus:null };
+
+  function buildSatellite(c){
+    if(satInner){ satRoot.remove(satInner); disposeTree(satInner); }
+    clearLabels();
+
+    var busW = 2.6, busH = 2.6, busD = 4.2;
+    var L = Math.max(c.arrL, 0.6);
+    var D = Math.max(c.arrD, 0.4);
+    var rW = Math.max(c.radW, 0.5);
+    var rH = Math.max(c.radH, 0.5);
+
+    var g = new THREE.Group();
+    satInner = g;
+    satRoot.add(g);
+
+    // 主体
+    var bus = new THREE.Mesh(new THREE.BoxGeometry(busW, busH, busD), MAT.bus);
+    g.add(bus);
+
+    var ring = new THREE.Mesh(new THREE.BoxGeometry(busW*1.02, 0.16, busD*1.02), MAT.gold);
+    ring.position.y = busH*0.30; g.add(ring);
+    var ring2 = ring.clone(); ring2.position.y = -busH*0.30; g.add(ring2);
+
+    // 机柜发光窗
+    var win = new THREE.Mesh(new THREE.BoxGeometry(1.3, 0.34, 0.04), MAT.glow);
+    win.position.set(0, 0.15, busD/2 + 0.02); g.add(win);
+    for(var wi=0; wi<3; wi++){
+      var w2 = new THREE.Mesh(new THREE.BoxGeometry(0.26, 0.07, 0.02), MAT.glow);
+      w2.position.set(-0.45 + wi*0.45, -0.28, busD/2 + 0.03); g.add(w2);
+    }
+
+    // 太阳能翼
+    for(var side=-1; side<=1; side+=2){
+      var boom = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.09, 1.5, 8), MAT.busDark);
+      boom.rotation.z = Math.PI/2;
+      boom.position.x = side * (busW/2 + 0.75);
+      g.add(boom);
+
+      var segs = 8, gap = 0.09;
+      var segL = (L - gap*(segs-1)) / segs;
+      for(var i=0;i<segs;i++){
+        var p = new THREE.Mesh(new THREE.BoxGeometry(segL, 0.075, D), MAT.panel);
+        p.position.x = side * (busW/2 + 1.5 + segL/2 + i*(segL+gap));
+        g.add(p);
+        if(i===Math.floor(segs/2)) dimsObj.panel = p;
+      }
+      var tip = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.1, D*1.02), MAT.busDark);
+      tip.position.x = side * (busW/2 + 1.5 + L + 0.1);
+      g.add(tip);
+    }
+
+    // 散热板
+    for(var side2=-1; side2<=1; side2+=2){
+      var rad = new THREE.Mesh(new THREE.BoxGeometry(rW, rH, 0.10), MAT.rad);
+      rad.position.set(0, 0, side2 * (busD/2 + 0.42));
+      g.add(rad);
+      if(side2 === 1) dimsObj.rad = rad;
+
+      for(var arm=0; arm<2; arm++){
+        var a = new THREE.Mesh(new THREE.CylinderGeometry(0.05,0.05,0.5,6), MAT.busDark);
+        a.rotation.x = Math.PI/2;
+        a.position.set(arm?0.9:-0.9, 0, side2*(busD/2+0.2));
+        g.add(a);
+      }
+    }
+
+    // 天线
+    var dishMat = MAT.bus.clone();
+    dishMat.side = THREE.DoubleSide;
+    var dish = new THREE.Mesh(new THREE.CylinderGeometry(0.85, 0.18, 0.45, 24, 1, true), dishMat);
+    dish.rotation.x = Math.PI;
+    dish.position.set(0, busH/2 + 0.55, 0);
+    g.add(dish);
+    var feed = new THREE.Mesh(new THREE.CylinderGeometry(0.045,0.045,0.5,8), MAT.gold);
+    feed.position.set(0, busH/2 + 0.36, 0); g.add(feed);
+    var mast = new THREE.Mesh(new THREE.CylinderGeometry(0.05,0.05,0.7,8), MAT.busDark);
+    mast.position.set(0, busH/2 + 0.35, 0); g.add(mast);
+
+    // 推进器
+    for(var tx=-1; tx<=1; tx+=2){
+      for(var tz=-1; tz<=1; tz+=2){
+        var th = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.22, 0.3, 12), MAT.busDark);
+        th.position.set(tx*busW*0.32, -busH/2 - 0.12, tz*busD*0.32);
+        g.add(th);
+      }
+    }
+
+    // 机位挂点：机体后上方（局部坐标，跟随卫星缩放）
+    camMount.position.set(0, 2.6, -2.2);
+    g.add(camMount);
+
+    // 缩放：卫星相对地球明显变小（真实比例下不足 1 像素，此处放大观察）
+    if(REF_SPAN === null) REF_SPAN = c.span;
+    var s = 0.28 * Math.pow(REF_SPAN / c.span, 0.42);
+    s = Math.max(0.12, Math.min(0.5, s));
+    satRoot.scale.setScalar(s);
+    satRoot.userData.scale = s;
+    satRoot.userData.exagg = s * KM_PER_UNIT * 1000;
+
+    addLabel('太阳能板 ' + fmt(c.Aarr,0) + ' m²', 'solar', dimsObj.panel, 16);
+    addLabel('散热板 ' + fmt(c.Arad,0) + ' m²', 'rad', dimsObj.rad, -16);
+    addLabel('机柜 ' + fmt(c.Ptot/1000,1) + ' kW', 'core', bus, 0);
+    setTimeout(function(){
+      labelStore.forEach(function(L){ if(L.sat) L.el.classList.add('show'); });
+    }, 60);
+  }
+
+  /* 太阳系标注 */
+  addStaticLabel('太阳', 'planet sun', sunMesh, -20);
+  planetObjs.forEach(function(p){ addStaticLabel(p.name, 'planet', p.obj, -16); });
+
+  /* ================= UI ================= */
+  function fmt(n, d){
+    if(!isFinite(n)) return '—';
+    d = d || 0;
+    var v = n.toFixed(d);
+    if(d === 0) return v.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+    return v;
+  }
+
+  var elIt=document.getElementById('it'), elPue=document.getElementById('pue'),
+      elSun=document.getElementById('sun'), elCell=document.getElementById('cell'),
+      elTemp=document.getElementById('temp'), elEmis=document.getElementById('emis');
+
+  function syncLabels(){
+    document.getElementById('v_it').innerHTML = S.it + '<small>kW</small>';
+    document.getElementById('v_pue').textContent = S.pue.toFixed(2);
+    document.getElementById('v_sun').innerHTML = S.sun.toFixed(0) + '<small>%</small>';
+    document.getElementById('v_cell').innerHTML = S.cell + '<small>W/m²</small>';
+    document.getElementById('v_temp').innerHTML = S.temp + '<small>°C</small>';
+    document.getElementById('v_emis').textContent = S.emis.toFixed(2);
+  }
+
+  var pending = null;
+  function refresh(){
+    if(pending) return;
+    pending = requestAnimationFrame(function(){
+      pending = null;
+      var c = calc();
+
+      document.getElementById('m_arr').textContent = fmt(c.Aarr, 0);
+      document.getElementById('m_rad').textContent = fmt(c.Arad, 0);
+      document.getElementById('m_pow').textContent = fmt(c.Ptot/1000, 1);
+      document.getElementById('m_mass').textContent = fmt(c.mass/1000, 1);
+
+      document.getElementById('dims').innerHTML =
+        '<b>太阳能板</b> ' + fmt(c.arrL,1) + ' × ' + fmt(c.arrD,1) + ' m × 2 片' +
+        '<span class="sep">|</span>' +
+        '<b>散热板</b> ' + fmt(c.radW,1) + ' × ' + fmt(c.radH,1) + ' m × 2 面' +
+        '<br>' +
+        '≈ ' + fmt(c.Aarr/420, 2) + ' 个篮球场 · 储能 ' + fmt(c.battKWh,1) + ' kWh · 热流密度 ' + fmt(c.flux,0) + ' W/m²' +
+        '<br><span class="note">卫星视觉放大 ≈ ' + fmt(satRoot.userData.exagg/10000, 1) + ' 万倍（真实比例不足 1 像素）</span>';
+
+      var load = Math.min(1, c.Q / 260000);
+      MAT.rad.emissiveIntensity = 0.03 + load * 0.55;
+      MAT.glow.emissiveIntensity = 1.6 + load * 2.6;
+
+      buildSatellite(c);
+    });
+  }
+
+  function bindInput(el, key){
+    el.addEventListener('input', function(){
+      S[key] = parseFloat(el.value);
+      syncLabels();
+      refresh();
+    });
+  }
+  bindInput(elIt,'it'); bindInput(elPue,'pue'); bindInput(elCell,'cell');
+  bindInput(elTemp,'temp'); bindInput(elEmis,'emis');
+
+  elSun.addEventListener('input', function(){
+    S.sun = parseFloat(elSun.value);
+    syncLabels();
+    document.querySelectorAll('.chip').forEach(function(b){ b.classList.remove('on'); });
+    refresh();
+  });
+  document.querySelectorAll('.chip').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      document.querySelectorAll('.chip').forEach(function(b){ b.classList.remove('on'); });
+      btn.classList.add('on');
+      S.sun = parseFloat(btn.dataset.sun);
+      elSun.value = S.sun;
+      syncLabels();
+      refresh();
+    });
+  });
+  document.getElementById('reset').addEventListener('click', function(){
+    S = Object.assign({}, DEFAULT);
+    elIt.value = S.it; elPue.value = S.pue; elSun.value = S.sun;
+    elCell.value = S.cell; elTemp.value = S.temp; elEmis.value = S.emis;
+    document.querySelectorAll('.chip').forEach(function(b,i){ b.classList.toggle('on', i===0); });
+    syncLabels();
+    refresh();
+  });
+
+  /* ================= 镜头模式 ================= */
+  var mode = 'free';
+  var handover = false;
+  var lookTarget = new THREE.Vector3(0,0,0);
+  var FREE_POS = new THREE.Vector3(150, 100, 250);
+  var freeTarget = new THREE.Vector3(0,0,0);
+
+  var solarCamPos = system.localToWorld(new THREE.Vector3(560, 2150, 2050));
+  var solarTargetPos = system.localToWorld(new THREE.Vector3(800, 0, 0));
+
+  function setMode(m){
+    mode = m;
+    document.querySelectorAll('.modes button').forEach(function(b){
+      b.classList.toggle('on', b.dataset.mode === m);
+    });
+    if(m === 'free'){
+      handover = true;
+      controls.enabled = false;
+      camera.fov = 45;
+    } else if(m === 'sat'){
+      controls.enabled = false;
+      handover = false;
+      camera.fov = 62;
+    } else {
+      controls.enabled = false;
+      handover = false;
+      camera.fov = 46;
+    }
+    camera.updateProjectionMatrix();
+  }
+
+  document.querySelectorAll('.modes button').forEach(function(b){
+    b.addEventListener('click', function(){ setMode(b.dataset.mode); });
+  });
+
+  /* ================= 动画 ================= */
+  var statusEl = document.getElementById('status');
+  var statusText = statusEl.querySelector('span');
+  var t0 = performance.now();
+  var last = performance.now();
+  var curEclipse = false;
+  var orbitAngle = -1.05;
+
+  function occludedByEarth(camPos, satPos){
+    var d = new THREE.Vector3().subVectors(satPos, camPos);
+    var len = d.length(); if(len < 1e-6) return false;
+    d.normalize();
+    var tc = -camPos.dot(d);
+    if(tc < 0 || tc > len) return false;
+    var closest = camPos.clone().addScaledVector(d, tc);
+    return closest.length() < EARTH_R * 0.97;
+  }
+
+  var tmpV = new THREE.Vector3(), tmpV2 = new THREE.Vector3();
+
+  function animate(){
+    requestAnimationFrame(animate);
+    var now = performance.now();
+    var dt = Math.min((now - last) / 1000, 0.1);
+    last = now;
+    var t = (now - t0) / 1000;
+
+    if(spinEarth){
+      earth.rotation.y += dt * 0.12;
+      clouds.rotation.y += dt * 0.155;
+    }
+
+    if(orbitSat) orbitAngle += dt * 0.05;
+    orbitPivot.rotation.y = orbitAngle;
+
+    // 对日定向
+    if(satInner){
+      var qW = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0,1,0), SUN);
+      var qP = new THREE.Quaternion();
+      orbitPivot.getWorldQuaternion(qP);
+      satRoot.quaternion.copy(qP.invert()).multiply(qW);
+      satRoot.rotateOnAxis(new THREE.Vector3(0,1,0), Math.sin(t*0.1)*0.06);
+    }
+
+    // 地影判定（地球在原点）
+    var wp = new THREE.Vector3();
+    satRoot.getWorldPosition(wp);
+    var dotS = wp.dot(SUN);
+    var perp = wp.clone().addScaledVector(SUN, -dotS).length();
+    var inShadow = (dotS < 0) && (perp < EARTH_R);
+    if(inShadow !== curEclipse){
+      curEclipse = inShadow;
+      statusEl.classList.toggle('eclipse', inShadow);
+      statusText.textContent = inShadow ? '地影中 · 电池供电'
+        : (S.sun > 95 ? '全日照 · 晨昏轨道' : '日照中 · 边供电边充电');
+    }
+
+    // 镜头
+    var k = 1 - Math.exp(-dt * 4.2);
+    if(mode === 'sat'){
+      camMount.getWorldPosition(tmpV);
+      camera.position.lerp(tmpV, k);
+      camera.lookAt(SUN_WORLD);
+      camera.rotateX(-0.14);
+      controls.enabled = false;
+    } else if(mode === 'solar'){
+      camera.position.lerp(solarCamPos, k);
+      camera.lookAt(solarTargetPos);
+      controls.enabled = false;
+    } else if(handover){
+      camera.position.lerp(FREE_POS, k);
+      lookTarget.lerp(freeTarget, k);
+      camera.lookAt(lookTarget);
+      if(camera.position.distanceTo(FREE_POS) < 2.2){
+        handover = false;
+        controls.target.copy(freeTarget);
+        camera.lookAt(freeTarget);
+        controls.enabled = true;
+      }
+    } else {
+      controls.update();
+    }
+
+    // 标注
+    var w = window.innerWidth, h = window.innerHeight;
+    var satOccluded = occludedByEarth(camera.position, wp);
+    var satVisible = (mode === 'free') && !satOccluded && !handover;
+    for(var i=0;i<labelStore.length;i++){
+      var L = labelStore[i];
+      if(!L.obj) continue;
+      var vis = L.sat ? satVisible : true;
+      if(!vis){ L.el.style.opacity = 0; continue; }
+      var v = L.obj.getWorldPosition(tmpV2).project(camera);
+      if(v.z > 1 || v.z < -1){ L.el.style.opacity = 0; continue; }
+      var x = (v.x*0.5+0.5)*w;
+      var y = (-v.y*0.5+0.5)*h + L.dy;
+      L.el.style.transform = 'translate(-50%,-50%) translate(' + x.toFixed(1) + 'px,' + y.toFixed(1) + 'px)';
+      L.el.style.opacity = 1;
+    }
+
+    orbitLineMesh.visible = orbitSat;
+
+    renderer.render(scene, camera);
+  }
+
+  window.addEventListener('resize', function(){
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+  });
+
+  document.getElementById('swSpin').addEventListener('change', function(e){ spinEarth = e.target.checked; });
+  document.getElementById('swOrbit').addEventListener('change', function(e){
+    orbitSat = e.target.checked;
+    orbitLineMesh.visible = orbitSat;
+  });
+
+  /* 启动 */
+  syncLabels();
+  refresh();
+  setMode('free');
+
+  var hash = (location.hash || '').replace('#','');
+  if(hash === 'sat' || hash === 'solar') setMode(hash);
+
+  animate();
+
+})();
+</script>
+</body>
+</html>
